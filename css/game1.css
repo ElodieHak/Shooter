@@ -1,0 +1,15 @@
+/*--------------------CSS---------------------*/
+body{
+    text-align: center;
+    margin: auto;
+}
+#game{
+    height: 600px;
+    width: 800px;
+    border: 1px solid purple;
+    margin: auto;
+    text-align: center;
+}
+h1{
+    font-size: 40px;
+}
