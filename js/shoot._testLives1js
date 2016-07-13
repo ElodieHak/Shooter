@@ -1,0 +1,272 @@
+game = new Phaser.Game(800, 600, Phaser.AUTO, 'game', {preload: preload, create: create, update: update, render: render}) ;
+
+// PRELOAD ---------------------------------------------------------
+
+function preload() {
+
+    game.load.image('bg', 'assets/bg1.jpg');
+    game.load.image('laser', 'assets/laser.png');
+    game.load.image('ship', 'assets/ship1.png');
+    game.load.image('enemy', 'assets/enemy1.png');
+    game.load.image('explosion', 'assets/explosion1.png');
+    game.load.image('button', 'assets/restart.png');
+}
+
+// VARIABLES-------------------------------------------------------
+
+var player;
+var cursors;
+var shootButton;
+var enemy;
+var laserTime = 0;
+var laser;
+var lasers;
+var score = 0;
+var scoreText;
+var scoreString = '';
+var explosions;
+var timer=0;
+var chrono;
+var timerEnemies = 0;
+var lives;
+var stateText;
+
+// CREATE----------------------------------------------------------
+
+// Function Create
+
+function create() {
+
+    //Chrono
+    chrono = game.time.events.add(Phaser.Timer.SECOND * 30, timeOut, this);
+  
+    //  Background
+    game.add.sprite(0, 0, 'bg');
+
+    // Score
+    scoreString = 'Score : ';
+    scoreText = game.add.text(10, 10, scoreString + score, { font: '34px Arial', fill: '#fff' });
+
+    // Lasers
+    lasers = game.add.physicsGroup();
+    lasers.createMultiple(30 , 'laser', true);
+    lasers.setAll('checkWorldBounds', true);
+    lasers.setAll('outOfBoundsKill', true);
+
+    // Cursors
+    cursors = game.input.keyboard.createCursorKeys();
+    shootButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+
+    //Enemy
+    enemy = game.add.physicsGroup();
+
+    // Player
+    player = game.add.sprite(game.world.centerX, game.world.centerY, 'ship');
+    player.anchor.setTo(0, 0);
+    laser = game.add.physicsGroup();
+    laser.createMultiple(30, 'laser', false);
+    laser.setAll('checkWorldBounds', true);
+    laser.setAll('outOfBoundsKill', true);game.physics.arcade.enable(player);
+    player.body.collideWorldBounds = true;
+
+    game.physics.arcade.enable(player);
+
+    //  Text
+    stateText = game.add.text(game.world.centerX,game.world.centerY,' ', { font: '84px Arial', fill: '#fff' });
+    stateText.anchor.setTo(0.5, 0.5);
+    stateText.visible = false;
+
+    for (var i = 0; i < 3; i++)
+    {
+        player = lives.create(game.world.width - 100 + (30 * i), 60, 'ship');
+        player.anchor.setTo(0.5, 0.5);
+        player.angle = 90;
+        player.alpha = 0.4;
+    }
+
+    //  Lives
+    lives = game.add.group();
+    game.add.text(game.world.width - 100, 10, 'Lives : ', { font: '34px Arial', fill: '#fff' });
+
+
+    //Explosion
+    explosions = game.add.group();
+    explosions.createMultiple(100, 'explosion');
+    explosions.forEach(setupLaser, this);
+
+    cursors = game.input.keyboard.createCursorKeys();
+    shootButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+
+    function setupLaser (laser) {
+        laser.anchor.x = 0;
+        laser.anchor.y = 0;
+        laser.animations.add('explosion');
+    }
+
+    game.input.onDown.add(restartGame, self);
+    game.physics.arcade.overlap(enemy, player, enemyHitsPlayer, null, this);
+}
+
+//Restart
+function restartGame(){
+    if (chrono === 0) {
+        popup = game.add.sprite(25, 50, 'button');
+        popup.inputEnabled = true;
+
+        if (game.paused) {
+            if (popup.getBounds().contains(this.game.input.x, this.game.input.y)) {
+                this.game.paused = false;
+                this.popup.visible = false;
+                game.state.restart();
+                score = 0;
+            }
+        }
+    }
+
+    lives.callAll('revive');
+
+    enemy.removeAll();
+    createEnemies();
+
+    //revives the player
+    player.revive();
+}
+
+// UPDATE----------------------------------------------------------
+
+// Update
+function update() {
+
+    createEnemies();
+
+    enemy.forEach(checkPos, this);
+
+    player.body.velocity.x = 0;
+    player.body.velocity.y = 0;
+
+    if (cursors.left.isDown){
+        player.body.velocity.x = -400;
+
+    }
+    else if (cursors.right.isDown){
+        player.body.velocity.x = 400;
+
+    }
+
+    if (cursors.up.isDown){
+        player.body.velocity.y = -400;
+    }
+
+    else if (cursors.down.isDown){
+        player.body.velocity.y = 400;
+    }
+
+    if (shootButton.isDown){
+        fireLaser();
+    }
+    ///  Run collision
+    game.physics.arcade.overlap(lasers, enemy, collisionShips, null, this);
+
+}
+
+// checkPos
+function checkPos (enemy) {
+
+    if (enemy.y > 600)
+    {
+        enemy.y = -100;
+    }
+
+}
+
+// fireLaser
+function fireLaser () {
+    console.log('fireLaser', timer);
+    if (game.time.time > timer){
+        laser = lasers.getFirstExists(false);
+
+        if (laser){
+            laser.reset(player.x + 4, player.y -10);
+            laser.body.velocity.y = -400;
+            timer = game.time.time + 60;
+        }
+    }
+}
+
+// collisions
+function collisionHandler (laser, enemy) {
+
+    enemy.kill();
+    laser.kill();
+
+    //  Increase score
+    score += 157;
+    scoreText.text = scoreString + score;
+
+    //Explosion
+    var explosion = explosions.getFirstExists(false);
+    explosion.reset(enemy.body.x, enemy.body.y);
+    explosion.play('explosion', 20, false, true);
+}
+
+//
+function enemyHitsPlayer (player,enemy) {
+
+enemy.kill();
+
+live = lives.getFirstAlive();
+
+if (live)
+{
+    live.kill();
+}
+
+//  And create an explosion :)
+    var explosion = explosions.getFirstExists(false);
+    explosion.reset(enemy.body.x, enemy.body.y);
+    explosion.play('explosion', 20, false, true);
+
+// When the player dies
+if (lives.countLiving() < 1)
+{
+    player.kill();
+    enemy.callAll('kill');
+
+    stateText.text=" GAME OVER \n Click to restart";
+    stateText.visible = true;
+
+    //the "click to restart" handler
+    game.input.onTap.addOnce(restart,this);
+}
+
+}
+
+// timeOut
+function timeOut() {
+    var chrono = game.time.events.duration;
+    if (chrono === 0) {
+        setTimeout(function() {
+            restartGame();
+            game.paused = true;
+        });
+    }
+}
+
+//createEnemies
+
+function createEnemies (){
+
+    if (game.time.time > timerEnemies){
+        var x =  game.rnd.between(30,730);
+        enemies = enemy.create(x, -100, 'enemy');
+        enemies.body.velocity.y = game.rnd.between(60, 160);
+        timerEnemies = game.time.time +90;
+    }
+}
+
+// RENDER ---------------------------------------------------------
+
+function render () {
+    chrono = game.time.events.duration;
+    game.debug.text("Time : " + chrono, 64, 64);
+}
